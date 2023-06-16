@@ -1,4 +1,7 @@
-[![Build Status](https://travis-ci.org/centic9/poi-on-android.svg)](https://travis-ci.org/centic9/poi-on-android) [![Gradle Status](https://gradleupdate.appspot.com/centic9/poi-on-android/status.svg?branch=master)](https://gradleupdate.appspot.com/centic9/poi-on-android/status)
+[![Build Status](https://github.com/centic9/poi-on-android/actions/workflows/build.yaml/badge.svg)](https://github.com/centic9/poi-on-android/actions)
+[![Gradle Status](https://gradleupdate.appspot.com/centic9/poi-on-android/status.svg?branch=master)](https://gradleupdate.appspot.com/centic9/poi-on-android/status)
+[![Release](https://img.shields.io/github/release/centic9/poi-on-android.svg)](https://github.com/centic9/poi-on-android/releases)
+[![GitHub release](https://img.shields.io/github/release/centic9/poi-on-android.svg?label=changelog)](https://github.com/centic9/poi-on-android/releases/latest)
 
 This is a sample Android application to show how
 Apache POI can be used on Android.
@@ -10,8 +13,8 @@ It consists of two projects:
   that usually hinder you deploying Apache POI on
   Android
 * poitest: A very small sample Android application
-  which performs some actions on an XLSX-file using
-  Apache POI. See `DocumentListActivity` for the actual
+  which performs some actions on XLSX-, PPTX and DOCX-files using
+  Apache POI. See `MainActivity` for the actual
   code
 
 #### Getting started
@@ -28,14 +31,23 @@ application (let me know if you know of a better way to do this, see issue #10)
 
 ##### Supported Android versions
 
-The sample project uses API level 15, which maps to Android 4.0.3. Theoretically lower versions should work 
-as well, but we do not test these to avoid this additional effort.
+The sample project uses minimum SDK version 26, which maps to Android 8.0. Higher versions should work as well, 
+older ones are likely not supported any more.
 
 ##### Dependencies
 
-Note: The dependencies of Apache POI are not included in the shading to keep it's size at bay. If you use code
-areas which require commons-codec, commons-collections4 or any of the other dependencies, you will need to define
+Note: Some dependencies of Apache POI are not included in the shading to keep it's size at bay. If you use code
+areas which require commons-codec, commons-collections4 or any of the other dependencies, you may need to add
 them in your Android application in addition to the poishadow-all.jar file dependency.
+
+##### Missing java.awt classes
+
+Unfortunately Android does not provide any of the classes in package `java.awt` and 
+thus any code which uses code from there will not work. This affects various places
+in Apache POI, e.g. when handling column-width, images or other graphical operations.
+
+A few classes have been re-implemented in the src-folder in project `poishadow`. If you
+are missing some you might be able to add re-implementations there.
 
 ##### Use a pre-built jar
 
@@ -62,7 +74,7 @@ You will need the following pieces in order to get started
 
 Get the code:
 
-    git clone git://github.com/centic9/poi-on-android
+    git clone https://github.com/centic9/poi-on-android.git
     cd poi-on-android
 
 Configure where your Android SDK resides:
@@ -108,16 +120,18 @@ Install the apk
   just a small sample Android application to show that it works.
 * This was only tested in Android Studio with the Android
   emulator until now, should work on real Android as well, though!
-* Tested with `targetSdkVersion 25` and `minSdkVersion 15`,
-  although other versions should work as long as they support
-  `multiDexEnabled true`
+* Tested with `targetSdkVersion 26` and `minSdkVersion 26`
 
 #### Todo
 
 * Add more actual functionality to the sample application,
-  currently it just creates a new spreadsheet, adds some data
-  then stores it in the Application storage area and reads it
-  again from there.
+  currently it just performs some basic functionality on
+  documents.
+* Some parts of the JDK are missing on Android, e.g. AWT-related classes.
+  Some of these are missing when some functionality of Apache POI
+  is used and thus currently crash the sample project. 
+  There are some libraries which provide these classes, but none
+  was in a state that allowed it to easily integrate it here.
 
 #### Links
 
@@ -132,7 +146,7 @@ Install the apk
 
 #### Licensing
 
-   Copyright 2015-2018 Dominik Stadler
+   Copyright 2015-2022 Dominik Stadler
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

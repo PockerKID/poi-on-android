@@ -1,25 +1,25 @@
 package org.dstadler.poiandroidtest.poitest.test;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public class TestIssue28 {
-    public static void saveExcelFile(FileOutputStream outputStream) throws IOException {
+    public static void saveExcelFile(OutputStream outputStream) throws IOException {
 
         Workbook wb = new HSSFWorkbook();
 
         CellStyle cs = wb.createCellStyle();
-        cs.setFillForegroundColor(HSSFColor.HSSFColorPredefined.LIME.getIndex());
+        cs.setFillForegroundColor(IndexedColors.LIME.getIndex());
 
-        Sheet sheet1 = wb.createSheet("wrok");
+        Sheet sheet1 = wb.createSheet("work");
 
         Row row = sheet1.createRow(0);
         Cell c = row.createCell(0);
