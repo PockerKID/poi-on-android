@@ -10,9 +10,12 @@ import android.os.ParcelFileDescriptor;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
+import org.apache.commons.io.output.CountingOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.Version;
 import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.extractor.ExtractorFactory;
+import org.apache.poi.extractor.POITextExtractor;
 import org.apache.poi.hslf.usermodel.HSLFSlide;
 import org.apache.poi.hslf.usermodel.HSLFSlideShow;
 import org.apache.poi.poifs.crypt.TestSignatureInfo;
@@ -65,12 +68,14 @@ public class MainActivity extends Activity {
 		System.setProperty("org.apache.poi.javax.xml.stream.XMLOutputFactory", "com.fasterxml.aalto.stax.OutputFactoryImpl");
 		System.setProperty("org.apache.poi.javax.xml.stream.XMLEventFactory", "com.fasterxml.aalto.stax.EventFactoryImpl");
 
+		System.setProperty("org.apache.poi.ss.ignoreMissingFontSystem", "true");
+
 		try {
 			// create all the list items
 			setupContent();
 
 			// populate the list
-			final ListView listview = (ListView) findViewById(R.id.mylist);
+			final ListView listview = findViewById(R.id.mylist);
 			final ArrayList<String> list = new ArrayList<>();
 			for (DummyContent.DummyItem item : DummyContent.ITEMS) {
 				list.add(item.toString());
@@ -190,7 +195,9 @@ public class MainActivity extends Activity {
 		}
 
 		DummyContent.addItem(new DummyItemWithCode("v" + (idCount++), "POI Version",
-				() -> "Apache " + Version.getProduct() + " " + Version.getVersion() + " (" + Version.getReleaseDate() + ")"));
+				() ->
+						"Apache " + Version.getProduct() + " " + Version.getVersion() + "\n" +
+						"App " + BuildConfig.VERSION_NAME + " - " + BuildConfig.VERSION_CODE));
 
 		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++),
 				"DOCX with image",
@@ -212,7 +219,7 @@ public class MainActivity extends Activity {
 		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Callable",
 				() -> "This is the result from the callable"));
 
-		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Signature Info - May crash",
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Signature Info",
 				() -> {
 					TestSignatureInfo test = new TestSignatureInfo();
 					test.testConstruct();
@@ -227,13 +234,31 @@ public class MainActivity extends Activity {
 		}));
 
 		// reproducer for https://github.com/centic9/poi-on-android/issues/75
-		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Issue 75 - Crashes!!", () -> {
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test resizing JPEG (#75)", () -> {
 			try (InputStream pictureStream = getResources().openRawResource(R.raw.logo);
-				 OutputStream outputStream = openFileOutput("issue75.xlsx", Context.MODE_PRIVATE)) {
-				TestIssue75.saveExcelFile(pictureStream, outputStream);
-			}
+				 CountingOutputStream outputStream = new CountingOutputStream(openFileOutput("issue75.xlsx", Context.MODE_PRIVATE))) {
+				TestIssue75.saveExcelFile(pictureStream, outputStream, Workbook.PICTURE_TYPE_JPEG);
 
-			return "Issue 75 - XMLSlideShow constructed successfully";
+				return "Issue 75 - XSSFWorkbook constructed successfully, wrote " + outputStream.getByteCount() + " bytes";
+			}
+		}));
+
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test resizing PNG (#75)", () -> {
+			try (InputStream pictureStream = getResources().openRawResource(R.raw.logo_png);
+				 CountingOutputStream outputStream = new CountingOutputStream(openFileOutput("resizePng.xlsx", Context.MODE_PRIVATE))) {
+				TestIssue75.saveExcelFile(pictureStream, outputStream, Workbook.PICTURE_TYPE_PNG);
+
+				return "Test resizing PNG file - XSSFWorkbook constructed successfully, wrote " + outputStream.getByteCount() + " bytes";
+			}
+		}));
+
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test resizing BMP (#75)", () -> {
+			try (InputStream pictureStream = getResources().openRawResource(R.raw.logo_bmp);
+				 CountingOutputStream outputStream = new CountingOutputStream(openFileOutput("resizeBmp.xlsx", Context.MODE_PRIVATE))) {
+				TestIssue75.saveExcelFile(pictureStream, outputStream, Workbook.PICTURE_TYPE_DIB);
+
+				return "Test resizing BMP file - XSSFWorkbook constructed successfully, wrote " + outputStream.getByteCount() + " bytes";
+			}
 		}));
 
 		// reproducer for https://github.com/centic9/poi-on-android/issues/84
@@ -246,13 +271,60 @@ public class MainActivity extends Activity {
 		}));
 
 		// reproducer for https://github.com/centic9/poi-on-android/issues/89
-		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Issue 89 - Crashes!!", () -> {
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Issue 89", () -> {
 			try (OutputStream outputStream = openFileOutput("issue89.xlsx", Context.MODE_PRIVATE)) {
 				TestIssue89.saveExcelFile(outputStream);
 			}
 
 			return "Issue 89 - SXSSFWorkbook constructed successfully";
 		}));
+
+		// reproducer for https://github.com/centic9/poi-on-android/issues/98
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Issue 98", () -> {
+			StringBuilder text = new StringBuilder();
+			for (int resource : new int[] {
+					R.raw.simple,
+					R.raw.sample2,
+					R.raw.sample,
+					R.raw.lorem_ipsum,
+			} ) {
+				try (InputStream pictureStream = getResources().openRawResource(resource);
+					 POITextExtractor extractor = ExtractorFactory.createExtractor(pictureStream)) {
+
+					text.append("\nResource-").append(resource).append(": ").append(extractor.getText());
+				}
+			}
+			return "Issue 98 - Had text: " + text;
+		}));
+
+		// reproducer for https://github.com/centic9/poi-on-android/issues/103
+		DummyContent.addItem(new DummyItemWithCode("c" + (idCount++), "Test Issue 103", () -> {
+			try (InputStream inputStream = getResources().openRawResource(R.raw.sample);
+				XMLSlideShow slideShow = new XMLSlideShow(inputStream)) {
+
+				return "Issue 103 - XMLSlideShow constructed successfully: " + slideShow.getSlides().size();
+			}
+		}));
+
+		try (InputStream slidesFile = getResources().openRawResource(R.raw.sample)) {
+			try (XMLSlideShow slides = new XMLSlideShow(slidesFile)) {
+				for (XSLFSlide slide : slides.getSlides()) {
+					DummyContent.addItem(new DummyItemWithCode("c" + (idCount++),
+							"Slide - " + slide.getSlideName(),
+							slide::getTitle));
+				}
+			}
+		}
+
+		try (InputStream slidesFile = getResources().openRawResource(R.raw.sample2)) {
+			try (HSLFSlideShow slides = new HSLFSlideShow(slidesFile)) {
+				for (HSLFSlide slide : slides.getSlides()) {
+					DummyContent.addItem(new DummyItemWithCode("c" + (idCount++),
+							"Slide - " + slide.getSlideName(),
+							slide::getTitle));
+				}
+			}
+		}
 
 		try (InputStream docFile = getResources().openRawResource(R.raw.lorem_ipsum)) {
 			XWPFDocument doc = new XWPFDocument(docFile);
@@ -282,26 +354,6 @@ public class MainActivity extends Activity {
 						() -> "Called"));
 			} finally {
 				doc.close();
-			}
-		}
-
-		try (InputStream slidesFile = getResources().openRawResource(R.raw.sample)) {
-			try (XMLSlideShow slides = new XMLSlideShow(slidesFile)) {
-				for (XSLFSlide slide : slides.getSlides()) {
-					DummyContent.addItem(new DummyItemWithCode("c" + (idCount++),
-							"Slide - " + slide.getSlideName(),
-							slide::getTitle));
-				}
-			}
-		}
-
-		try (InputStream slidesFile = getResources().openRawResource(R.raw.sample2)) {
-			try (HSLFSlideShow slides = new HSLFSlideShow(slidesFile)) {
-				for (HSLFSlide slide : slides.getSlides()) {
-					DummyContent.addItem(new DummyItemWithCode("c" + (idCount++),
-							"Slide - " + slide.getSlideName(),
-							slide::getTitle));
-				}
 			}
 		}
 	}
